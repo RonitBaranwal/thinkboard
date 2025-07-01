@@ -14,7 +14,7 @@ const HomePage = () => {
             try {
                 const res = await api.get('/notes');
                 setNotes(res.data.notes);
-                console.log(res.data.notes[0]);
+                
                 setIsRateLimited(false);
             } catch (err) {
                 console.log(err);

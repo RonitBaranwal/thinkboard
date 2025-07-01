@@ -1,18 +1,54 @@
-import express from 'express';
-import notesRoutes from './routes/notesRoutes.js';
-import { connectDB } from './config/db.js';
-import dotenv from 'dotenv'
-import rateLimiter from './middleware/rateLimiter.js';
-import cors from 'cors';
+import express from "express";
+import cors from "cors";
+import dotenv from "dotenv";
+import path from "path";
+import { fileURLToPath } from "url";
+import notesRoutes from "./routes/notesRoutes.js";
+import { connectDB } from "./config/db.js";
+import rateLimiter from "./middleware/rateLimiter.js";
 
 dotenv.config();
-const app = express(); 
-app.use(cors({
-    origin:"http://localhost:5173",
-}));
-const PORT=process.env.PORT || 5000;
-connectDB();
-app.use(express.json());
-app.use(rateLimiter)
-app.use("/api/notes",notesRoutes);
-app.listen(5000, () => console.log(`Server running in port ${PORT}`)); 
+
+const app = express();
+const PORT = process.env.PORT || 5001;
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+// middleware
+if (process.env.NODE_ENV !== "production") {
+    app.use(
+        cors({
+            origin: "http://localhost:5173",
+        })
+    );
+}
+app.use(express.json()); // this middleware will parse JSON bodies: req.body
+app.use(rateLimiter);
+
+// our simple custom middleware
+// app.use((req, res, next) => {
+//   console.log(`Req method is ${req.method} & Req URL is ${req.url}`);
+//   next();
+// });
+
+// app.use("/api/notes", notesRoutes);
+try {
+    app.use("/api/notes", notesRoutes);
+} catch (err) {
+    console.error("Failed to mount notesRoutes:", err);
+}
+if (process.env.NODE_ENV === "production") {
+    // 1. Serve static assets
+    app.use(express.static(path.join(__dirname, "../../frontend/dist")));
+
+    // 2. Catch-all AFTER static
+    app.get("*", function (_, res) {
+        res.sendFile(path.join(__dirname, "../../frontend/dist/index.html"));
+    });
+}
+
+connectDB().then(() => {
+    app.listen(PORT, () => {
+        console.log("Server started on PORT:", PORT);
+    });
+});
